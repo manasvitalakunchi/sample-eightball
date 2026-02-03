@@ -14,4 +14,13 @@ public class EightBall {
 		new FileReader(filename).read(buffer);
 		System.out.println(buffer);
 	}
+
+import java.sql.*;
+
+public class VulnDemo {
+    public void bad(String userInput) throws Exception {
+        Connection c = DriverManager.getConnection("jdbc:h2:mem:");
+        Statement s = c.createStatement();
+        s.execute("SELECT * FROM users WHERE name = '" + userInput + "'");
+    }
 }
