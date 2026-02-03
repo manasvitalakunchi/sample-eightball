@@ -1,0 +1,56 @@
+image: maven:3.9.6-eclipse-temurin-17
+
+stages:
+  - sast
+  - sca
+  - sbom
+
+before_script:
+  - apt-get update && apt-get install -y curl nodejs npm
+
+  - curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+  - chmod +x snyk
+  - mv snyk /usr/local/bin/snyk
+
+  - npm install -g snyk-to-html
+
+  - snyk auth $SNYK_TOKEN
+
+
+snyk_sast:
+  stage: sast
+  script:
+    - snyk code test --json > snyk-sast.json || true
+
+    - snyk-to-html -i snyk-sast.json -o snyk-sast.html
+  artifacts:
+    when: always
+    paths:
+      - snyk-sast.json
+      - snyk-sast.html
+
+
+snyk_sca:
+  stage: sca
+  script:
+    - snyk test --maven-aggregate-project --json > snyk-sca.json || true
+
+    - snyk-to-html -i snyk-sca.json -o snyk-sca.html
+  artifacts:
+    when: always
+    paths:
+      - snyk-sca.json
+      - snyk-sca.html
+
+
+snyk_sbom:
+  stage: sbom
+  script:
+    - snyk sbom --format=cyclonedx-json > snyk-sbom.json
+
+    - snyk-to-html -i snyk-sbom.json -o snyk-sbom.html
+  artifacts:
+    when: always
+    paths:
+      - snyk-sbom.json
+      - snyk-sbom.html
