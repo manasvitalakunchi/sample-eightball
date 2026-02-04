@@ -1,0 +1,54 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: sudo apt-get update && sudo apt-get install -y maven
+
+      - run: npm install -g snyk snyk-to-html
+
+      - name: SAST
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          mvn clean compile -DskipTests
+          snyk code test --json > snyk-sast.json || true
+          snyk-to-html -i snyk-sast.json -o snyk-sast.html || true
+
+      - name: SCA
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test --json > snyk-sca.json || true
+          snyk-to-html -i snyk-sca.json -o snyk-sca.html || true
+
+      - name: SBOM
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk sbom --format=cyclonedx1.6+json > snyk-sbom.json || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            snyk-sast.*
+            snyk-sca.*
+            snyk-sbom.json
